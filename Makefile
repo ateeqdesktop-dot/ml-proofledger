@@ -7,14 +7,17 @@ test:
 	PYTHONPATH=src python3 -m pytest -q
 
 lint:
-	ruff check src tests examples
+	ruff check src tests examples scripts
+
+benchmark:
+	PYTHONPATH=src python3 scripts/benchmark_hashing.py
 
 typecheck:
 	mypy src
 
 format-check:
-	ruff format --check src tests examples
-	python3 -m compileall -q src tests examples
+	ruff format --check src tests examples scripts
+	python3 -m compileall -q src tests examples scripts
 
 sample:
 	python3 examples/train_sample.py

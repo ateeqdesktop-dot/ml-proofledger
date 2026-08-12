@@ -107,6 +107,16 @@ The repository uses a small layered design. Domain models define the manifest co
 
 The source diagram is [`docs/architecture.mmd`](docs/architecture.mmd), and the detailed design is [`docs/design.md`](docs/design.md).
 
+## Performance
+
+The important hot path in the MVP is bounded-memory SHA-256 hashing. Run the reproducible local benchmark with:
+
+```bash
+make benchmark
+```
+
+On the development sandbox, hashing an 8 MiB file over five iterations produced a median of **347.024 MiB/s** with a stable digest. This is a local baseline, not a cross-machine promise; rerun the benchmark on the target hardware before making capacity decisions.
+
 ## Security and threat model
 
 ProofLedger treats manifest contents and repository files as untrusted input. Declared paths are resolved against the selected repository root and rejected if they escape it. Symlinks are rejected to avoid surprising target substitution. Git is invoked with fixed read-only argument lists; the recorded command is metadata and is never executed. Environment collection is intentionally narrow and does not copy arbitrary environment variables, tokens, or secret files.
@@ -119,6 +129,7 @@ Hash verification detects byte changes, missing paths, type changes, and directo
 make test
 make lint
 make format-check
+make benchmark
 ```
 
 The test suite covers deterministic file and directory hashes, path traversal and symlink rejection, capture/store/verify success, tampered and missing artifacts, CLI JSON output, and invalid input. GitHub Actions runs tests, type checking, formatting, package build, and repository-hygiene checks on Python 3.10, 3.11, and 3.12.
