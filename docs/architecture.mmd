@@ -1,0 +1,28 @@
+flowchart LR
+    CLI[CLI: capture / verify / show]
+    CAP[CaptureService]
+    VER[VerifyService]
+    DOM[Domain: Manifest + Artifact + Policy]
+    HASH[HashProvider\nstreaming SHA-256]
+    GIT[GitInspector\nread-only metadata]
+    ENV[EnvironmentCollector\nPython/platform/packages]
+    STORE[ManifestStore\nversioned JSON]
+    FS[(Repository files)]
+    OUT[VerificationResult\ntext / JSON / exit code]
+
+    CLI --> CAP
+    CLI --> VER
+    CAP --> DOM
+    VER --> DOM
+    CAP --> HASH
+    CAP --> GIT
+    CAP --> ENV
+    CAP --> STORE
+    HASH --> FS
+    VER --> HASH
+    VER --> GIT
+    VER --> ENV
+    VER --> STORE
+    STORE --> FS
+    VER --> OUT
+    OUT --> CLI
