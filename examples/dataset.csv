@@ -1,0 +1,7 @@
+x1,x2,label,split
+0.0,0.1,negative,train
+0.2,0.0,negative,train
+1.0,1.1,positive,train
+1.2,0.9,positive,train
+0.1,0.2,negative,test
+1.1,1.0,positive,test
