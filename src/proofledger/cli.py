@@ -9,6 +9,7 @@ from typing import Any
 
 from .context import EnvironmentCollector
 from .errors import InputError, ManifestError, ProofLedgerError
+from .evidence import EvidenceRecord
 from .models import DatasetSplit, VerificationPolicy
 from .services import ArtifactSpec, CaptureService, VerifyService
 from .store import ManifestStore
@@ -29,6 +30,16 @@ def build_parser() -> argparse.ArgumentParser:
     capture.add_argument("--output", action="append", default=[], metavar="NAME=PATH")
     capture.add_argument("--parameter", action="append", default=[], metavar="NAME=VALUE")
     capture.add_argument("--metric", action="append", default=[], metavar="NAME=NUMBER")
+    capture.add_argument(
+        "--evidence",
+        action="append",
+        default=[],
+        metavar="JSON",
+        help=(
+            'evidence JSON, e.g. {"id":"eval","kind":"metric",'
+            '"statement":"passed","decision":"accept"}'
+        ),
+    )
     capture.add_argument("--split", help="dataset split as a JSON object")
     capture.add_argument("--package", action="append", default=[], dest="packages")
     capture.add_argument(
@@ -91,6 +102,7 @@ def _capture(args: argparse.Namespace) -> int:
         parameters=_parse_key_values(args.parameter),
         metrics=_parse_metrics(args.metric),
         dataset_split=split,
+        evidence=_parse_evidence(args.evidence),
         policy=policy,
     )
     ManifestStore(args.manifest).save(manifest)
@@ -166,6 +178,17 @@ def _parse_metrics(values: list[str]) -> dict[str, float]:
             raise InputError(f"metric must be numeric: {name}")
         metrics[name] = float(value)
     return metrics
+
+
+def _parse_evidence(values: list[str]) -> tuple[EvidenceRecord, ...]:
+    records: list[EvidenceRecord] = []
+    for raw in values:
+        try:
+            data = json.loads(raw)
+            records.append(EvidenceRecord.from_dict(data))
+        except (json.JSONDecodeError, ValueError, TypeError) as exc:
+            raise InputError(f"evidence must be valid evidence JSON: {exc}") from exc
+    return tuple(records)
 
 
 def _parse_split(raw: str) -> DatasetSplit:

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
 from .errors import ManifestError
+from .evidence import EvidenceRecord
 
 ArtifactKind = Literal["file", "directory"]
 
@@ -220,11 +221,13 @@ class Manifest:
     dataset_split: DatasetSplit | None
     inputs: tuple[ArtifactRecord, ...]
     outputs: tuple[ArtifactRecord, ...]
-    verification_policy: VerificationPolicy
+    evidence: tuple[EvidenceRecord, ...] = field(default_factory=tuple)
+    bundle_digest: str | None = None
+    verification_policy: VerificationPolicy = field(default_factory=VerificationPolicy)
 
     def __post_init__(self) -> None:
-        if self.schema_version != "1.0":
-            raise ManifestError("unsupported schema_version; expected 1.0")
+        if self.schema_version not in ("1.0", "1.1"):
+            raise ManifestError("unsupported schema_version; expected 1.0 or 1.1")
         _require_string(self.run_id, "run_id")
         _require_string(self.created_at, "created_at")
         _require_string(self.root, "root")
@@ -238,6 +241,14 @@ class Manifest:
         names = [artifact.name for artifact in (*self.inputs, *self.outputs)]
         if len(names) != len(set(names)):
             raise ManifestError("artifact names must be unique across inputs and outputs")
+        evidence_ids = [item.id for item in self.evidence]
+        if len(evidence_ids) != len(set(evidence_ids)):
+            raise ManifestError("evidence ids must be unique")
+        if self.bundle_digest is not None and (
+            len(self.bundle_digest) != 64
+            or any(char not in "0123456789abcdef" for char in self.bundle_digest)
+        ):
+            raise ManifestError("bundle_digest must be a lowercase SHA-256 digest")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -253,6 +264,8 @@ class Manifest:
             "dataset_split": self.dataset_split.to_dict() if self.dataset_split else None,
             "inputs": [artifact.to_dict() for artifact in self.inputs],
             "outputs": [artifact.to_dict() for artifact in self.outputs],
+            "evidence": [item.to_dict() for item in self.evidence],
+            "bundle_digest": self.bundle_digest,
             "verification_policy": self.verification_policy.to_dict(),
         }
 
@@ -296,5 +309,7 @@ class Manifest:
             dataset_split=DatasetSplit.from_dict(data.get("dataset_split")),
             inputs=tuple(ArtifactRecord.from_dict(value) for value in raw_inputs),
             outputs=tuple(ArtifactRecord.from_dict(value) for value in raw_outputs),
+            evidence=tuple(EvidenceRecord.from_dict(value) for value in data.get("evidence", [])),
+            bundle_digest=data.get("bundle_digest"),
             verification_policy=VerificationPolicy.from_dict(data.get("verification_policy")),
         )

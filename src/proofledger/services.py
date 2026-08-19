@@ -3,14 +3,16 @@ from __future__ import annotations
 import platform
 import re
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from .canonical import bundle_digest
 from .context import EnvironmentCollector, GitInspector
 from .errors import InputError
+from .evidence import EvidenceRecord
 from .hashing import hash_declared_path
 from .models import (
     ArtifactRecord,
@@ -69,6 +71,7 @@ class CaptureService:
         parameters: Mapping[str, Any] | None = None,
         metrics: Mapping[str, float] | None = None,
         dataset_split: DatasetSplit | None = None,
+        evidence: Iterable[EvidenceRecord] = (),
         policy: VerificationPolicy | None = None,
         run_id: str | None = None,
     ) -> Manifest:
@@ -84,8 +87,8 @@ class CaptureService:
         output_records = artifact_records[len(input_specs) :]
         if len({record.name for record in artifact_records}) != len(artifact_records):
             raise InputError("artifact names must be unique across inputs and outputs")
-        return Manifest(
-            schema_version="1.0",
+        manifest = Manifest(
+            schema_version="1.1",
             run_id=run_id or uuid4().hex[:12],
             created_at=datetime.now(timezone.utc).isoformat(),
             root=str(root),
@@ -97,8 +100,10 @@ class CaptureService:
             dataset_split=dataset_split,
             inputs=input_records,
             outputs=output_records,
+            evidence=tuple(evidence),
             verification_policy=policy or VerificationPolicy(),
         )
+        return replace(manifest, bundle_digest=bundle_digest(manifest.to_dict()))
 
     @staticmethod
     def _record_artifact(spec: ArtifactSpec, root: Path) -> ArtifactRecord:
@@ -123,6 +128,25 @@ class VerifyService:
     def verify(self, manifest: Manifest, manifest_path: Path) -> VerificationResult:
         root = self.root.resolve()
         issues: list[VerificationIssue] = []
+        if manifest.bundle_digest is not None:
+            actual_digest = bundle_digest(manifest.to_dict())
+            if actual_digest != manifest.bundle_digest:
+                issues.append(
+                    VerificationIssue(
+                        "BUNDLE_DIGEST_MISMATCH",
+                        "manifest contents differ from the recorded bundle digest",
+                        "bundle_digest",
+                    )
+                )
+        for item in manifest.evidence:
+            if item.decision == "reject":
+                issues.append(
+                    VerificationIssue(
+                        "EVIDENCE_REJECTED",
+                        f"evidence item is explicitly rejected: {item.id}",
+                        f"evidence.{item.id}",
+                    )
+                )
         artifacts = (*manifest.inputs, *manifest.outputs)
         for artifact in artifacts:
             try:

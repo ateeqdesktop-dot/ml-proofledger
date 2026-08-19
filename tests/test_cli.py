@@ -80,3 +80,76 @@ def test_installed_entrypoint_help_is_available(tmp_path: Path) -> None:
     )
     assert result.returncode == 0
     assert "capture" in result.stdout
+
+
+def test_cli_captures_evidence_and_bundle_digest(tmp_path: Path, capsys) -> None:
+    (tmp_path / "data.txt").write_text("fixture", encoding="utf-8")
+    manifest = tmp_path / "proofledger.json"
+    evidence = json.dumps(
+        {
+            "id": "eval-1",
+            "kind": "evaluation",
+            "statement": "fixture passed",
+            "decision": "accept",
+            "confidence": 0.99,
+        }
+    )
+    assert (
+        main(
+            [
+                "capture",
+                "--root",
+                str(tmp_path),
+                "--manifest",
+                str(manifest),
+                "--command",
+                "python",
+                "run.py",
+                "--input",
+                "data=data.txt",
+                "--evidence",
+                evidence,
+                "--allow-dirty",
+                "--no-git-revision",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    assert data["schema_version"] == "1.1"
+    assert data["evidence"][0]["decision"] == "accept"
+    assert len(data["bundle_digest"]) == 64
+    assert main(["verify", "--root", str(tmp_path), "--manifest", str(manifest)]) == 0
+    assert "VERIFIED" in capsys.readouterr().out
+
+
+def test_published_schema_accepts_captured_manifest(tmp_path: Path) -> None:
+    from jsonschema import validate
+
+    (tmp_path / "data.txt").write_text("schema-fixture", encoding="utf-8")
+    manifest = tmp_path / "proofledger.json"
+    assert (
+        main(
+            [
+                "capture",
+                "--root",
+                str(tmp_path),
+                "--manifest",
+                str(manifest),
+                "--command",
+                "python",
+                "run.py",
+                "--input",
+                "data=data.txt",
+                "--allow-dirty",
+                "--no-git-revision",
+            ]
+        )
+        == 0
+    )
+    schema_path = Path(__file__).parents[1] / "schemas" / "proofledger-1.1.schema.json"
+    validate(
+        json.loads(manifest.read_text(encoding="utf-8")),
+        json.loads(schema_path.read_text(encoding="utf-8")),
+    )

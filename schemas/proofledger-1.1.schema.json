@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ateeqdesktop-dot/ml-proofledger/blob/main/schemas/proofledger-1.1.schema.json",
+  "title": "ProofLedger Evidence Manifest",
+  "type": "object",
+  "required": ["schema_version", "run_id", "created_at", "root", "command", "git", "environment", "inputs", "outputs", "evidence", "bundle_digest", "verification_policy"],
+  "properties": {
+    "schema_version": {"const": "1.1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "minLength": 1},
+    "root": {"type": "string", "minLength": 1},
+    "command": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+    "git": {"$ref": "#/$defs/git"},
+    "environment": {"$ref": "#/$defs/environment"},
+    "parameters": {"type": "object"},
+    "metrics": {"type": "object", "additionalProperties": {"type": "number"}},
+    "dataset_split": {"type": ["object", "null"]},
+    "inputs": {"type": "array", "items": {"$ref": "#/$defs/artifact"}},
+    "outputs": {"type": "array", "items": {"$ref": "#/$defs/artifact"}},
+    "evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+    "bundle_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "verification_policy": {"$ref": "#/$defs/policy"}
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "required": ["name", "path", "kind", "sha256"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "path": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["file", "directory"]},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "file_count": {"type": "integer", "minimum": 0}
+      }
+    },
+    "git": {
+      "type": "object",
+      "required": ["revision", "branch", "dirty", "remote"],
+      "properties": {
+        "revision": {"type": ["string", "null"]},
+        "branch": {"type": ["string", "null"]},
+        "dirty": {"type": ["boolean", "null"]},
+        "remote": {"type": ["string", "null"]}
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": ["python_version", "implementation", "platform", "packages"],
+      "properties": {
+        "python_version": {"type": "string", "minLength": 1},
+        "implementation": {"type": "string", "minLength": 1},
+        "platform": {"type": "string", "minLength": 1},
+        "packages": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["id", "kind", "statement", "decision"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"type": "string", "minLength": 1},
+        "statement": {"type": "string", "minLength": 1},
+        "decision": {"enum": ["accept", "review", "reject"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "source": {"type": "string"},
+        "artifact": {"type": "string"}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "required": ["require_git_revision", "require_clean_git", "require_python_compatibility"],
+      "properties": {
+        "require_git_revision": {"type": "boolean"},
+        "require_clean_git": {"type": "boolean"},
+        "require_python_compatibility": {"type": "boolean"}
+      }
+    }
+  }
+}

@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 from proofledger.context import EnvironmentCollector
+from proofledger.evidence import EvidenceRecord
 from proofledger.models import DatasetSplit, VerificationPolicy
 from proofledger.services import ArtifactSpec, CaptureService, VerifyService
 from proofledger.store import ManifestStore
@@ -44,7 +45,7 @@ def test_capture_store_and_verify_success(tmp_path: Path) -> None:
     assert result.ok
     assert result.checked_artifacts == 2
     assert result.issues == ()
-    assert json.loads(manifest_path.read_text(encoding="utf-8"))["schema_version"] == "1.0"
+    assert json.loads(manifest_path.read_text(encoding="utf-8"))["schema_version"] == "1.1"
 
 
 def test_verify_reports_tampered_artifact(tmp_path: Path) -> None:
@@ -86,3 +87,40 @@ def test_verify_reports_missing_artifact(tmp_path: Path) -> None:
 
     assert not result.ok
     assert result.issues[0].code == "MISSING_OR_UNREADABLE_PATH"
+
+
+def test_bundle_digest_is_stable_and_detects_manifest_tampering(tmp_path: Path) -> None:
+    _git_repo(tmp_path)
+    (tmp_path / "data.txt").write_text("stable", encoding="utf-8")
+    manifest = CaptureService(tmp_path, EnvironmentCollector()).capture(
+        command=["python", "run.py"],
+        inputs=[ArtifactSpec("data", "data.txt")],
+        outputs=[],
+        evidence=[],
+        policy=VerificationPolicy(require_clean_git=False),
+    )
+    assert manifest.bundle_digest is not None
+    tampered = manifest.to_dict()
+    tampered["parameters"] = {"seed": 99}
+    loaded = ManifestStore(tmp_path / "manifest.json")
+    loaded.path.write_text(json.dumps(tampered), encoding="utf-8")
+    result = VerifyService(tmp_path, EnvironmentCollector()).verify(loaded.load(), loaded.path)
+    assert not result.ok
+    assert result.issues[0].code == "BUNDLE_DIGEST_MISMATCH"
+
+
+def test_rejected_evidence_fails_closed(tmp_path: Path) -> None:
+    _git_repo(tmp_path)
+    (tmp_path / "data.txt").write_text("stable", encoding="utf-8")
+    manifest = CaptureService(tmp_path, EnvironmentCollector()).capture(
+        command=["python", "run.py"],
+        inputs=[ArtifactSpec("data", "data.txt")],
+        outputs=[],
+        evidence=[
+            EvidenceRecord(id="policy", kind="review", statement="unsafe output", decision="reject")
+        ],
+        policy=VerificationPolicy(require_clean_git=False),
+    )
+    result = VerifyService(tmp_path, EnvironmentCollector()).verify(manifest, tmp_path / "m.json")
+    assert not result.ok
+    assert result.issues[0].code == "EVIDENCE_REJECTED"
