@@ -23,7 +23,7 @@ ProofLedger does not claim that a verified hash proves scientific correctness or
 | Evidence | Reviewable claims with `accept`, `review`, or `reject` decisions, confidence, source, and artifact references |
 | Bundle integrity | Deterministic canonical JSON digest that detects manifest tampering offline |
 | Verification | Fail-closed checks for schema, digest, paths, kind, bytes, size, file count, Git policy, runtime compatibility, and rejected evidence |
-| Automation | Stable exit codes and machine-readable `--json` output |
+| Automation | Stable exit codes, machine-readable `--json`, and SARIF 2.1.0 output |
 | Safety | No shell execution, network calls, arbitrary environment collection, or path traversal |
 
 The published contract is [`schemas/proofledger-1.1.schema.json`](schemas/proofledger-1.1.schema.json). The implementation also reads schema 1.0 manifests for backward compatibility.
@@ -69,6 +69,8 @@ proofledger capture \
   --split '{"name":"v1","strategy":"temporal","seed":7,"counts":{"train":800,"test":200}}'
 
 proofledger verify --root . --manifest run-evidence.json --json
+# For GitHub Code Scanning-compatible output:
+proofledger verify --root . --manifest run-evidence.json --sarif > proofledger.sarif
 ```
 
 The `--evidence` argument is metadata. ProofLedger does not execute evaluators or infer truth from a statement; it preserves the claim and applies the explicit decision policy supplied by the producer.
@@ -83,7 +85,7 @@ A successful result means that every declared evidence check passed under the po
 | `1` | Verification completed but evidence mismatched or policy rejected the bundle |
 | `2` | Invalid input, malformed manifest, or filesystem/CLI error |
 
-Failures use stable codes such as `BUNDLE_DIGEST_MISMATCH`, `EVIDENCE_REJECTED`, `ARTIFACT_HASH_MISMATCH`, `MISSING_OR_UNREADABLE_PATH`, `GIT_REVISION_MISMATCH`, `GIT_WORKTREE_DIRTY`, and `PYTHON_VERSION_MISMATCH`. JSON output is intended for CI and downstream tooling.
+Failures use stable codes such as `BUNDLE_DIGEST_MISMATCH`, `EVIDENCE_REJECTED`, `ARTIFACT_HASH_MISMATCH`, `MISSING_OR_UNREADABLE_PATH`, `GIT_REVISION_MISMATCH`, `GIT_WORKTREE_DIRTY`, and `PYTHON_VERSION_MISMATCH`. JSON output is intended for general automation, while `--sarif` emits SARIF 2.1.0 results with rule IDs and artifact locations for GitHub Code Scanning.
 
 ## Architecture
 
@@ -119,13 +121,14 @@ make format-check
 make benchmark
 ```
 
-The test suite covers canonical digest stability, tamper detection, evidence policy rejection, deterministic file and directory hashes, path traversal and symlink rejection, capture/store/verify flows, CLI JSON output, and invalid input. GitHub Actions runs the quality gates across supported Python versions.
+The test suite covers canonical digest stability, tamper detection, evidence policy rejection, deterministic file and directory hashes, path traversal and symlink rejection, capture/store/verify flows, CLI JSON and SARIF output, schema validation, and invalid input. GitHub Actions runs the quality gates across supported Python versions and verifies the sample bundle as SARIF.
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request and [`SECURITY.md`](SECURITY.md) for vulnerability reporting. The project is MIT licensed.
 
 ## Roadmap
 
-The next releases can add detached signatures through an external adapter, an in-toto predicate export, SARIF output, a reusable GitHub Action, dataset/model-store plugins, and a content-addressed local registry. A future collaboration service must consume the same portable bundle rather than replace the local-first contract.
+The next releases can add detached signatures through an external adapter, an in-toto predicate export, a reusable GitHub Action wrapper, dataset/model-store plugins, and a content-addressed local registry.
+A future collaboration service must consume the same portable bundle rather than replace the local-first contract.
 
 ## References
 

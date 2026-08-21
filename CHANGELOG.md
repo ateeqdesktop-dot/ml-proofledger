@@ -10,7 +10,8 @@ The project follows a lightweight Keep a Changelog style, and versions use Seman
 
 - Initial portable evidence-manifest MVP for machine-learning runs.
 - Deterministic file and directory hashing with path and symlink protections.
-- Capture, verify, and show CLI commands with stable exit codes and JSON output.
-- Sample nearest-centroid run, typed domain models, unit and integration tests, documentation, and GitHub Actions CI.
+- Capture, verify, and show CLI commands with stable exit codes, JSON output, and SARIF 2.1.0 output.
+- GitHub Actions sample verification with SARIF upload support for Code Scanning.
+- Sample nearest-centroid run, typed domain models, unit and integration tests, published JSON Schema, documentation, and GitHub Actions CI.
 
 [Unreleased]: https://github.com/ateeqdesktop-dot/ml-proofledger/compare/v0.1.0...HEAD

@@ -153,3 +153,65 @@ def test_published_schema_accepts_captured_manifest(tmp_path: Path) -> None:
         json.loads(manifest.read_text(encoding="utf-8")),
         json.loads(schema_path.read_text(encoding="utf-8")),
     )
+
+
+def test_cli_sarif_output_contains_verification_result(tmp_path: Path, capsys) -> None:
+    (tmp_path / "data.txt").write_text("sarif", encoding="utf-8")
+    manifest = tmp_path / "proofledger.json"
+    assert (
+        main(
+            [
+                "capture",
+                "--root",
+                str(tmp_path),
+                "--manifest",
+                str(manifest),
+                "--command",
+                "python",
+                "run.py",
+                "--input",
+                "data=data.txt",
+                "--allow-dirty",
+                "--no-git-revision",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert main(["verify", "--root", str(tmp_path), "--manifest", str(manifest), "--sarif"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    run = report["runs"][0]
+    assert report["version"] == "2.1.0"
+    assert run["properties"]["verified"] is True
+    assert run["results"] == []
+
+
+def test_cli_sarif_reports_tampered_artifact(tmp_path: Path, capsys) -> None:
+    (tmp_path / "data.txt").write_text("before", encoding="utf-8")
+    manifest = tmp_path / "proofledger.json"
+    assert (
+        main(
+            [
+                "capture",
+                "--root",
+                str(tmp_path),
+                "--manifest",
+                str(manifest),
+                "--command",
+                "python",
+                "run.py",
+                "--input",
+                "data=data.txt",
+                "--allow-dirty",
+                "--no-git-revision",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    (tmp_path / "data.txt").write_text("after", encoding="utf-8")
+    assert main(["verify", "--root", str(tmp_path), "--manifest", str(manifest), "--sarif"]) == 1
+    report = json.loads(capsys.readouterr().out)
+    result = report["runs"][0]["results"][0]
+    assert result["ruleId"] == "ARTIFACT_HASH_MISMATCH"
+    assert result["level"] == "error"

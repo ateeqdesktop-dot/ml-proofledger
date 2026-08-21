@@ -22,7 +22,7 @@ The primary users are research engineers, ML platform engineers, graduate studen
 
 The MVP implements a Python 3.10+ package and CLI with two core operations. `capture` computes streaming SHA-256 hashes for declared input files, output files, and directories; records Git state, Python/runtime information, command, parameters, metrics, and an explicit dataset split; and writes a versioned JSON manifest. `verify` re-hashes the declared paths, validates the manifest schema and policy, compares the current Git revision and environment claims, and returns a structured verdict with actionable failures. `show` prints a compact human-readable summary without modifying evidence.
 
-The MVP deliberately does not implement a tracking server, remote storage, cryptographic signing, arbitrary code execution, container introspection, or universal bit-for-bit reproducibility. Those are later adapters or integrations. The absence of a feature is documented rather than hidden behind a placeholder.
+The MVP deliberately does not implement a tracking server, remote storage, cryptographic signing, arbitrary code execution, container introspection, or universal bit-for-bit reproducibility. SARIF output is implemented as a CI/reporting adapter; signing and remote integrations remain later adapters. The absence of a feature is documented rather than hidden behind a placeholder.
 
 ## Functional requirements
 
@@ -35,7 +35,7 @@ The MVP deliberately does not implement a tracking server, remote storage, crypt
 | FR-05 | Verify evidence | `proofledger verify` reports pass/fail and exits non-zero on mismatch |
 | FR-06 | Explain failures | Every failure has a stable code, path or field when relevant, and a remediation message |
 | FR-07 | Stay safe by default | No shell command execution, no network request, no secret collection, no path traversal outside declared roots |
-| FR-08 | Support CI | `--json` output is stable enough for automation and the package has a GitHub Actions example |
+| FR-08 | Support CI | `--json` and SARIF 2.1.0 output are available and GitHub Actions verifies and uploads the sample report |
 | FR-09 | Provide sample data | The repository includes a tiny deterministic fixture and a runnable sample capture/verify flow |
 
 ## Non-functional requirements
@@ -80,7 +80,7 @@ Hashing is streaming with a configurable chunk size and does not read an entire 
 
 ## MVP, advanced features, and roadmap
 
-The MVP includes local JSON evidence, robust verification, a sample ML run, typed APIs, tests, documentation, CI, and a Docker-compatible CLI image. Advanced features include signed manifests using an external key, SARIF output, a GitHub Action wrapper, dataset adapter plugins, and optional OpenLineage event export. Future work may add content-addressed artifact storage, remote evidence registries, SLSA-compatible binding, and a web review interface. These are roadmap items and are not represented as fake implementations in the MVP.
+The MVP includes local JSON evidence, robust verification, a sample ML run, typed APIs, tests, documentation, CI, a Docker-compatible CLI image, and SARIF output for GitHub Code Scanning. Advanced features include signed manifests using an external key, an official reusable GitHub Action wrapper, dataset adapter plugins, and optional OpenLineage event export. Future work may add content-addressed artifact storage, remote evidence registries, SLSA-compatible binding, and a web review interface. These are roadmap items and are not represented as fake implementations in the MVP.
 
 ## References
 

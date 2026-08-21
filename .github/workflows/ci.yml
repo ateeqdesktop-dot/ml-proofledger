@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  security-events: write
 
 jobs:
   test:
@@ -63,6 +64,26 @@ jobs:
         run: python -m compileall -q src tests examples scripts
       - name: Verify package metadata
         run: python -m pip install -e . && python -m pip check
+
+  sarif:
+    name: verify evidence and publish SARIF
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install package
+        run: python -m pip install -e "."
+      - name: Generate sample evidence
+        run: make sample && make capture
+      - name: Verify sample as SARIF
+        run: proofledger verify --root . --manifest examples/proofledger.json --sarif > proofledger.sarif
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: proofledger.sarif
 
   build:
     name: build distribution

@@ -11,6 +11,7 @@ from .context import EnvironmentCollector
 from .errors import InputError, ManifestError, ProofLedgerError
 from .evidence import EvidenceRecord
 from .models import DatasetSplit, VerificationPolicy
+from .reporting import verification_to_sarif
 from .services import ArtifactSpec, CaptureService, VerifyService
 from .store import ManifestStore
 
@@ -56,7 +57,14 @@ def build_parser() -> argparse.ArgumentParser:
     verify = subparsers.add_parser("verify", help="verify a manifest against the current checkout")
     verify.add_argument("--root", type=Path, default=Path("."), help="repository root")
     verify.add_argument("--manifest", type=Path, required=True, help="manifest path")
-    verify.add_argument("--json", action="store_true", dest="json_output")
+    output_group = verify.add_mutually_exclusive_group()
+    output_group.add_argument("--json", action="store_true", dest="json_output")
+    output_group.add_argument(
+        "--sarif",
+        action="store_true",
+        dest="sarif_output",
+        help="emit SARIF 2.1.0 for GitHub Code Scanning",
+    )
 
     show = subparsers.add_parser("show", help="show a manifest summary")
     show.add_argument("--manifest", type=Path, required=True, help="manifest path")
@@ -119,7 +127,9 @@ def _verify(args: argparse.Namespace) -> int:
     manifest = ManifestStore(args.manifest).load()
     service = VerifyService(args.root.resolve(), EnvironmentCollector())
     result = service.verify(manifest, args.manifest)
-    if args.json_output:
+    if args.sarif_output:
+        print(json.dumps(verification_to_sarif(result), indent=2))
+    elif args.json_output:
         print(json.dumps(result.to_dict(), indent=2))
     else:
         status = "VERIFIED" if result.ok else "FAILED"
